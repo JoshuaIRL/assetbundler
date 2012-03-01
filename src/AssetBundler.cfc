@@ -182,9 +182,21 @@
 			}
 			else if (LCase(arguments.type) == "js")
 			{
-				loc.errorReporter = loc.javaLoader.create("org.mozilla.javascript.tools.ToolErrorReporter").init(JavaCast("boolean", false));
-				loc.yuiCompressor = loc.javaLoader.create("com.yahoo.platform.yui.compressor.JavaScriptCompressor").init(loc.stringReader, loc.errorReporter);
-				loc.yuiCompressor.compress(loc.stringWriter, JavaCast("int", -1), JavaCast("boolean", true), JavaCast("boolean", false), JavaCast("boolean", false), JavaCast("boolean", false));
+				/*
+				* @author joshuairl
+				* @description ADDING ERROR DETECTION AND OUTPUT FOR DEBUGGING 
+				*/
+				loc.errOutputStream = createObject("java","java.io.ByteArrayOutputStream").init();
+				loc.errPrintStream = loc.javaLoader.create("java.io.PrintStream").init(loc.errOutputStream);
+				loc.errorReporter = loc.javaLoader.create("org.mozilla.javascript.tools.ToolErrorReporter").init(JavaCast("boolean", true),loc.errPrintStream);
+				
+				try {
+					loc.yuiCompressor = loc.javaLoader.create("com.yahoo.platform.yui.compressor.JavaScriptCompressor").init(loc.stringReader, loc.errorReporter);
+					loc.yuiCompressor.compress(loc.stringWriter, JavaCast("int", -1), JavaCast("boolean", true), JavaCast("boolean", false), JavaCast("boolean", false), JavaCast("boolean", false));
+				} catch (any e) {
+					loc.errPrintStream.close();
+					throw(message="YUI Compression Error",detail=loc.errOutputStream.toString());
+				}
 			}
 			else
 			{
@@ -208,7 +220,7 @@
 			loc.classPath = Replace(Replace(loc.relativePluginPath, "/", ".", "all") & "javaloader", ".", "", "one");
 			
 			loc.paths = ArrayNew(1);
-			loc.paths[1] = ExpandPath(loc.relativePluginPath & "lib/yuicompressor-2.4.2.jar");
+			loc.paths[1] = ExpandPath(loc.relativePluginPath & "lib/yuicompressor-2.4.7.jar");
 			
 			// set the javaLoader to the request in case we use it again
 			server.javaLoader = $createObjectFromRoot(path=loc.classPath, fileName="JavaLoader", method="init", loadPaths=loc.paths, loadColdFusionClassPath=false);
